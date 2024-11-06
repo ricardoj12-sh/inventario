@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+// productModel.js
+const mongoose = require('mongoose'); 
 const Schema = mongoose.Schema;
 
 const productSchema = new Schema({
@@ -16,6 +17,29 @@ const productSchema = new Schema({
     tags: [String],
     images: [String]
 });
+
+// Método para buscar productos por nombre o categoría
+productSchema.statics.searchProducts = function(query) {
+    return this.find({
+        $or: [
+            { name: { $regex: query, $options: 'i' } },
+            { category: { $regex: query, $options: 'i' } }
+        ]
+    });
+};
+
+// Método para agregar productos por categoría
+productSchema.statics.aggregateByCategory = function() {
+    return this.aggregate([
+        {
+            $group: {
+                _id: '$category',
+                totalProducts: { $sum: 1 },
+                averagePrice: { $avg: '$price' }
+            }
+        }
+    ]);
+};
 
 const Product = mongoose.model('Product', productSchema);
 module.exports = Product;
