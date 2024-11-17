@@ -4,6 +4,8 @@ const express = require("express");
 const connectDB = require("./config/database");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
+const redisClient = require("./config/redis"); // Importar configuración de Redis
+
 
 connectDB();
 const app = express();
