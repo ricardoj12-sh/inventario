@@ -1,6 +1,7 @@
 const redisClient = require("../config/redis"); // Importamos el cliente Redis
 const Product = require("../models/productModel");
 
+// Obtener todos los productos
 exports.getProducts = async (req, res) => {
   try {
     // Verificar si los productos están en caché
@@ -23,6 +24,7 @@ exports.getProducts = async (req, res) => {
   }
 };
 
+// Obtener un producto por ID y actualizar sus vistas
 exports.getProductById = async (req, res) => {
   const { id } = req.params;
 
@@ -30,6 +32,7 @@ exports.getProductById = async (req, res) => {
     // Verificar si el producto está en caché
     const cachedProduct = await redisClient.get(`product:${id}`);
     if (cachedProduct) {
+      await incrementProductViews(id); // Incrementar el contador de vistas
       return res.status(200).json(JSON.parse(cachedProduct));
     }
 
@@ -44,26 +47,57 @@ exports.getProductById = async (req, res) => {
       EX: 1800, // Expira en 30 minutos
     });
 
+    await incrementProductViews(id); // Incrementar el contador de vistas
+
     res.status(200).json(product);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-exports.createProduct = async (req, res) => {
+// Incrementar vistas de un producto
+const incrementProductViews = async (productId) => {
+  const viewsKey = `product_views:${productId}`;
+  const views = await redisClient.incr(viewsKey); // Incrementa el contador
+
+  // Si el contador alcanza un umbral, añadir a productos más consultados
+  const threshold = 1; // Incrementar en cualquier consulta
+  if (views >= threshold) {
+    await redisClient.zadd("most_viewed_products", views, productId);
+  }
+
+  // Configurar la expiración del contador de vistas
+  await redisClient.expire(viewsKey, 3600); // Expira en 1 hora
+};
+
+// Obtener los 10 productos más consultados
+exports.getMostViewedProducts = async (req, res) => {
   try {
-    const product = new Product(req.body);
-    await product.save();
+    // Recuperar los productos más consultados de Redis
+    const topProducts = await redisClient.zrevrange(
+      "most_viewed_products",
+      0,
+      9,
+      "WITHSCORES"
+    );
 
-    // Limpiar la caché de productos al crear un nuevo producto
-    await redisClient.del("products");
+    const products = [];
+    for (let i = 0; i < topProducts.length; i += 2) {
+      const productId = topProducts[i];
+      const score = topProducts[i + 1];
+      const product = await Product.findById(productId);
+      if (product) {
+        products.push({ product, views: score });
+      }
+    }
 
-    res.status(201).json(product);
+    res.status(200).json(products);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
+// Actualizar un producto
 exports.updateProduct = async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
@@ -86,6 +120,7 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
+// Eliminar un producto
 exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
@@ -103,6 +138,7 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
+// Agregar agregación por categoría
 exports.aggregateByCategory = async (req, res) => {
   try {
     const results = await Product.aggregateByCategory();
@@ -111,3 +147,17 @@ exports.aggregateByCategory = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.createProduct = async (req, res) => {
+  try {
+    const product = new Product(req.body);
+    await product.save();
+
+    // Limpiar la caché global de productos
+    await redisClient.del("products");
+
+    res.status(201).json(product);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
