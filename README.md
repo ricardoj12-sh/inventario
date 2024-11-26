@@ -130,4 +130,55 @@ Inicia el servidor:
 node server.js
 ---
 
-Este `README.md` proporciona una descripción completa de la funcionalidad, estructura y ejemplo
+###Implementacion de redis para consultar productos mas buscados
+
+Este proyecto utiliza Redis para gestionar un sistema de productos más consultados. Redis optimiza el manejo de vistas y rankings en tiempo real, permitiendo recuperar rápidamente los productos más populares.
+
+Características Principales
+Incremento de vistas:
+
+Cada vez que se consulta un producto, su contador de vistas se incrementa en Redis.
+Los productos se evalúan y actualizan en el conjunto ordenado most_viewed_products.
+Conjunto ordenado:
+
+Redis mantiene un conjunto ordenado con los productos más vistos, accesible rápidamente.
+Simulación de vistas:
+
+Un script de simulación permite probar y verificar el sistema de ranking.
+Componentes del Sistema
+Claves en Redis:
+
+product_views:{id}: Contador de vistas de un producto.
+most_viewed_products: Conjunto ordenado con los productos más consultados.
+Rutas clave:
+
+Consultar un producto (GET /products/:id):
+Incrementa el contador en Redis y actualiza el conjunto ordenado.
+Obtener los más consultados (GET /products/most-viewed):
+Recupera los 10 productos más vistos desde el conjunto most_viewed_products.
+Simulación:
+
+Un script genera vistas simuladas para validar el sistema.
+Flujo de Datos
+Incremento de vistas:
+
+Cada consulta a un producto actualiza su contador (product_views:{id}) y el conjunto most_viewed_products.
+Consulta de productos más populares:
+
+Se utiliza el comando ZREVRANGE para recuperar los productos con más vistas.
+Simulación:
+
+El script simulateSearches.js incrementa las vistas de productos predefinidos.
+Comandos de Verificación
+Ver contadores de vistas:
+bash
+Copiar código
+GET product_views:{id}
+Ver productos más populares:
+bash
+Copiar código
+ZREVRANGE most_viewed_products 0 9 WITHSCORES
+Beneficios
+Eficiencia: Redis reduce la carga en la base de datos.
+Escalabilidad: Soporte para grandes volúmenes de datos.
+Tiempo real: Actualizaciones y consultas rápidas.
