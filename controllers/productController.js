@@ -63,8 +63,11 @@ const incrementProductViews = async (productId) => {
   // Si el contador alcanza un umbral, añadir a productos más consultados
   const threshold = 1; // Incrementar en cualquier consulta
   if (views >= threshold) {
-    await redisClient.zadd("most_viewed_products", views, productId);
-  }
+    await redisClient.zAdd("most_viewed_products", {
+      score: views,
+      value: productId,
+    });
+      }
 
   // Configurar la expiración del contador de vistas
   await redisClient.expire(viewsKey, 3600); // Expira en 1 hora
